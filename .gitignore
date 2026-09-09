@@ -1,0 +1,10 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+output.mp3
+.idea/
+.DS_Store
+Thumbs.db
