@@ -1,97 +1,58 @@
 # Audio-to-ChatGPT Voice Pipeline
 
-A Python training project that transcribes an audio file, requests a short text response, converts it to speech, and plays the result. The original implementation uses Whisper's `base` model, OpenAI's `gpt-3.5-turbo` model, gTTS, and pydub.
+A Python exercise from my AI and robotics training at Smart Methods (summer 2025). The script takes an audio file, transcribes it with Whisper, asks OpenAI's `gpt-3.5-turbo` for a short reply, turns the reply into speech with gTTS and plays it.
 
 ## How it works
 
-1. Whisper loads the `base` model and transcribes the input file locally. The model weights may need to download on first use.
-2. The script sends the transcript to the OpenAI API using `OPENAI_API_KEY`.
-3. gTTS sends the generated response text to Google Translate's text-to-speech service and saves the returned audio as `output.mp3`.
-4. pydub decodes and plays that MP3 locally.
+1. Whisper's `base` model transcribes the audio locally. The model weights download the first time it runs.
+2. The transcript is sent to the OpenAI Chat Completions API with a system prompt that asks for a short answer.
+3. gTTS sends the reply to Google's text-to-speech service and saves the audio as `output.mp3`.
+4. pydub plays `output.mp3`.
 
-Both the OpenAI request and speech synthesis require network access. gTTS is an interface to a remote service, as described in the [gTTS documentation](https://gtts.readthedocs.io/en/latest/). The transcript and generated response are also printed in the terminal.
+Steps 2 and 3 need an internet connection. The transcript and the reply are also printed in the terminal.
 
 ## Setup
 
-Use a Python environment compatible with the dependencies; Python 3.11 is a reasonable starting point for this older script. The repository does not contain a lockfile or a newly tested environment.
-
-Create and activate a virtual environment from the repository root:
+Use Python 3.11 or 3.12. pydub relies on the `audioop` module, which was removed in Python 3.13.
 
 ```sh
 python -m venv .venv
-```
-
-```sh
-# macOS or Linux
-source .venv/bin/activate
-```
-
-```powershell
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-```
-
-Install the packages imported by the script:
-
-```sh
+source .venv/bin/activate          # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 python -m pip install openai openai-whisper gTTS pydub
 ```
 
-The package name is `openai-whisper`, while its Python import is `whisper`. See the [official Whisper setup instructions](https://github.com/openai/whisper#setup).
+The Whisper package is called `openai-whisper` on PyPI and is imported as `whisper`.
 
-Install FFmpeg and ensure `ffmpeg` and `ffplay` are available on `PATH`. Whisper requires FFmpeg to decode audio; pydub uses it for MP3 decoding and can use `ffplay` for playback. See [pydub's installation and playback guidance](https://github.com/jiaaro/pydub#installation).
+Install [FFmpeg](https://ffmpeg.org/download.html) and make sure `ffmpeg` and `ffplay` are on your `PATH`. Whisper uses FFmpeg to read the audio, and pydub uses it to decode and play the MP3. On Ubuntu, run `sudo apt install ffmpeg`; on macOS, run `brew install ffmpeg`.
 
-```sh
-# Ubuntu or Debian
-sudo apt update
-sudo apt install ffmpeg
-```
+Set your OpenAI API key in the terminal you will run the script from, and never commit it:
 
 ```sh
-# macOS with Homebrew
-brew install ffmpeg
+export OPENAI_API_KEY="your-api-key"      # macOS or Linux
+$env:OPENAI_API_KEY = "your-api-key"      # Windows PowerShell
 ```
 
-For Windows, use a Windows build linked from the [FFmpeg download page](https://ffmpeg.org/download.html) and add its `bin` directory to `PATH`. An available audio output device is needed for playback.
+The script reads the key from the environment; it does not load a `.env` file. Requests are billed to your OpenAI account, and the account needs access to `gpt-3.5-turbo`.
 
-Set the API key in the same terminal that will run the script. Replace `your-api-key` with your own key; never commit it:
-
-```sh
-# macOS or Linux
-export OPENAI_API_KEY="your-api-key"
-```
-
-```powershell
-# Windows PowerShell
-$env:OPENAI_API_KEY = "your-api-key"
-```
-
-```bat
-:: Windows Command Prompt
-set "OPENAI_API_KEY=your-api-key"
-```
-
-The code reads the process environment directly; it does not load a `.env` file. The OpenAI request needs API access to the configured model and may incur usage charges. The original model choice is retained; account access and current service availability have not been tested during this cleanup.
-
-## Usage and output
+## Usage
 
 Run from the repository root:
 
 ```sh
-python Main.py
-python Main.py "path/to/myfile.wav"
+python Main.py                    # uses the included audio.wav
+python Main.py path/to/file.wav   # uses another audio file
 ```
 
-The first command uses the included [`audio.wav`](audio.wav). The second accepts a different input path. This is file-based input; the script does not record a microphone or maintain a conversation history.
+The script works on a recorded file. It does not listen to a microphone or keep a conversation history. `output.mp3` is written to the current folder and replaced on every run.
 
-The terminal displays the transcript, response, and progress or error messages. A successful speech-synthesis step writes `output.mp3` in the current working directory, overwriting any previous file with that name. Playback failure can still leave the generated MP3 available.
+## Files
 
-## Files and limitations
+- [`Main.py`](Main.py): the whole pipeline.
+- [`audio.wav`](audio.wav): sample input.
+- `output.mp3`: generated speech, not committed.
 
-- [`Main.py`](Main.py): the complete pipeline.
-- [`audio.wav`](audio.wav): original sample audio.
-- `output.mp3`: generated speech, excluded from version control.
+## Limitations
 
-The script catches errors at model loading, transcription, API, synthesis, and playback stages. It reports them as text; it does not implement retries or reliable failure exit codes. Speech synthesis uses gTTS's default English language, regardless of the detected input language. A failed run can leave an older `output.mp3` in place.
-
-Use audio you are comfortable processing through the described services. Keep API keys and private recordings out of commits. Documentation was reviewed against the source and upstream setup guidance; no dependencies were installed, audio processed, paid API calls made, or historical tests rerun during this cleanup.
+- If a step fails, the script prints the error and stops. It does not retry, and the exit code is still 0.
+- gTTS speaks English by default, whatever language the input was in.
+- After a failed run, the `output.mp3` from an earlier run stays in place.
